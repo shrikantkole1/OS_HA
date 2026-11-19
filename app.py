@@ -1,7 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Set Streamlit page configuration
+# Configure Streamlit page layout
 st.set_page_config(
     page_title="Asset Sync – Warehouse Device Monitoring",
     page_icon="🔌",
@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Custom CSS to hide Streamlit branding, navigation padding, and render full viewport
+# Custom CSS to completely remove Streamlit chrome and display dashboard edge-to-edge
 st.markdown(
     """
     <style>
@@ -21,10 +21,7 @@ st.markdown(
         div[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
         
         .main .block-container {
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
+            padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
         }
@@ -45,7 +42,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Complete Frontend Application HTML/CSS/JavaScript
 HTML_CODE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,7 +59,7 @@ a{color:inherit;text-decoration:none}
 .brand i{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--ac),var(--ac2));display:grid;place-items:center;color:#fff;font-style:normal;font-size:19px;box-shadow:0 10px 24px -8px var(--ac)}
 .brand small{display:block;font-size:11px;font-weight:500;color:var(--mu);letter-spacing:0}
 nav{display:flex;flex-direction:column;gap:4px}
-nav a{display:flex;gap:11px;align-items:center;padding:11px 13px;border-radius:13px;color:var(--mu);font-weight:600;transition:.2s}
+nav a{display:flex;gap:11px;align-items:center;padding:11px 13px;border-radius:13px;color:var(--mu);font-weight:600;transition:.2s;cursor:pointer}
 nav a:hover{background:#eef0fb;color:var(--tx)}
 nav a.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;box-shadow:0 10px 22px -10px var(--ac)}
 .sf{margin-top:auto;border-radius:16px;padding:14px;background:linear-gradient(160deg,#eef2ff,#ecfeff);border:1px solid var(--bd);font-size:12px;color:var(--mu)}.sf b{color:var(--tx);display:block;font-size:13px}
@@ -111,7 +107,7 @@ input:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 3px #4f46e522}
 <body>
 <div class="app">
 <aside class="side"><div class="brand"><i>⟳</i><div>Asset Sync<small>Pune warehouse network</small></div></div><nav id="nav"></nav><div class="sf"><b>3 warehouses synced</b>Chakan · Bhosari · Hadapsar<br>Last sync: <span id="sy">just now</span></div></aside>
-<section class="main"><header class="bar"><div><h1 id="pt"></h1><p id="ps"></p></div><div class="row"><span class="live">Live monitoring</span><a class="pr" style="padding:9px 15px;border-radius:11px;font-weight:600" href="#connect">+ Connect device</a></div></header><div id="app"></div></section>
+<section class="main"><header class="bar"><div><h1 id="pt"></h1><p id="ps"></p></div><div class="row"><span class="live">Live monitoring</span><button class="pr" style="padding:9px 15px;border-radius:11px;font-weight:600" onclick="navTo('connect')">+ Connect device</button></div></header><div id="app"></div></section>
 </div>
 <div id="modal"></div><div id="toast"></div>
 <script>
@@ -128,24 +124,26 @@ var LB={cr:"Critical",wa:"Warning",in:"Info"};
 var DISC=[{n:"Reception Laptop",t:"laptop",ip:"192.168.10.77",s:0},{n:"HP LaserJet Office",t:"printer",ip:"192.168.20.64",s:1},{n:"Gate Camera",t:"cctv",ip:"192.168.30.91",s:2},{n:"Samsung Monitor",t:"monitor",ip:"192.168.30.58",s:2}];
 var H={up:[],al:[]};for(var i=0;i<30;i++){H.up.push(96+Math.random()*3);H.al.push(2+Math.random()*7)}
 var F={q:"",s:"-1",t:"all",st:"all"},wz={st:1,t:null,m:null,n:"",s:0,ip:""};
+var currentTab="dashboard";
+
 function toast(m){var t=$("toast");t.textContent=m;t.className="on";setTimeout(function(){t.className=""},2400)}
 function line(a,c,mn,mx,id){var w=600,h=190,p=14,xy=a.map(function(v,i){return[i*w/(a.length-1),h-p-(v-mn)/(mx-mn)*(h-2*p)]}),d=xy.map(function(q){return q[0].toFixed(1)+","+q[1].toFixed(1)}).join(" "),g="";
  for(var i=0;i<4;i++){var y=p+i*(h-2*p)/3;g+='<line x1="0" x2="'+w+'" y1="'+y+'" y2="'+y+'" stroke="#e6e9f2" stroke-dasharray="4 5" vector-effect="non-scaling-stroke"/>'}
  return'<svg class="ch" viewBox="0 0 600 190" preserveAspectRatio="none"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+c+'" stop-opacity=".28"/><stop offset="1" stop-color="'+c+'" stop-opacity="0"/></linearGradient></defs>'+g+'<polygon points="0,'+h+' '+d+' '+w+','+h+'" fill="url(#'+id+')"/><polyline points="'+d+'" fill="none" stroke="'+c+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>'}
 function bars(a,c1,c2){var w=600,h=190,n=a.length,bw=w/n,mx=Math.max.apply(null,a)+1,s="";a.forEach(function(v,i){var hh=v/mx*(h-12);s+='<rect x="'+(i*bw+5)+'" y="'+(h-hh)+'" width="'+(bw-10)+'" height="'+hh+'" rx="6" fill="'+(i%2?c2:c1)+'" opacity=".9"/>'});return'<svg class="ch" viewBox="0 0 600 190" preserveAspectRatio="none">'+s+'</svg>'}
 function cnt(f){return D.filter(f).length}
-function open(){return A.filter(function(a){return!a.x})}
+function getOpenAlerts(){return A.filter(function(a){return!a.x})}
 function head(t,s){$("pt").textContent=t;$("ps").textContent=s}
 function kpi(ic,bg,t,v,s){return'<div class="card"><div class="kp"><div class="ic" style="background:'+bg+'">'+ic+'</div><div><div class="sub">'+t+'</div><div class="big">'+v+'</div><div class="sub">'+s+'</div></div></div></div>'}
 function dRow(d){var s=ST[d.st];return'<div class="li" style="cursor:pointer" onclick="showDev('+d.id+')"><div class="dv">'+TY[d.t][1]+'</div><div><b>'+d.n+'</b><div class="sub">'+S[d.s]+", Pune · "+d.ip+'</div></div><span class="pill '+s[1]+'">'+s[0]+'</span></div>'}
 var PG={};
 PG.dashboard=function(){head("Dashboard","Live overview of every connected device across Pune");
- var on=cnt(function(d){return d.st==="on"}),off=cnt(function(d){return d.st==="off"}),oa=open(),tc={},g="",acc=0;D.forEach(function(d){tc[d.t]=(tc[d.t]||0)+1});
+ var on=cnt(function(d){return d.st==="on"}),off=cnt(function(d){return d.st==="off"}),oa=getOpenAlerts(),tc={},g="",acc=0;D.forEach(function(d){tc[d.t]=(tc[d.t]||0)+1});
  var ks=Object.keys(TY);ks.forEach(function(k,i){var p=(tc[k]||0)/D.length*100;g+=CL[i]+" "+acc+"% "+(acc+p)+"%,";acc+=p});
  var lg=ks.map(function(k,i){return'<div><i style="background:'+CL[i]+'"></i>'+TY[k][0]+'<span>'+(tc[k]||0)+'</span></div>'}).join("");
  return'<div class="pg a"><div class="g k4">'+kpi("🔌","#e0e7ff","Connected devices",D.length,"3 warehouses")+kpi("✅","#dcfaee","Online now",on,(on/D.length*100).toFixed(1)+"% healthy")+kpi("⛔","#fee2e2","Offline",off,"needs attention")+kpi("🔔","#fef3d6","Open alerts",oa.length,oa.filter(function(a){return a[0]==="cr"}).length+" critical")+'</div>'+
  '<div class="g w2"><div class="card"><h2>Fleet uptime</h2><div class="sub">Live – last 30 readings · now <b>'+H.up[29].toFixed(1)+'%</b></div>'+line(H.up,"#4f46e5",92,100,"u1")+'</div><div class="card"><h2>Device types</h2><div class="sub">What is connected</div><div class="dn"><div class="donut" style="background:conic-gradient('+g.slice(0,-1)+')"><b><div>'+D.length+'<small>devices</small></div></b></div><div class="lg">'+lg+'</div></div></div></div>'+
- '<div class="g e2"><div class="card"><div class="row" style="justify-content:space-between"><h2>Recent alerts</h2><a href="#alerts" class="pill in">View all</a></div>'+oa.slice(0,4).map(function(a){return'<div class="li"><span class="pill '+a[0]+'">'+LB[a[0]]+'</span><div><b>'+a[1]+'</b><div class="sub">'+S[a[2]]+" · "+a[3]+'</div></div></div>'}).join("")+'</div>'+
+ '<div class="g e2"><div class="card"><div class="row" style="justify-content:space-between"><h2>Recent alerts</h2><button onclick="navTo(\'alerts\')" class="pill in" style="border:0;cursor:pointer">View all</button></div>'+oa.slice(0,4).map(function(a){return'<div class="li"><span class="pill '+a[0]+'">'+LB[a[0]]+'</span><div><b>'+a[1]+'</b><div class="sub">'+S[a[2]]+" · "+a[3]+'</div></div></div>'}).join("")+'</div>'+
  '<div class="card"><h2>Alerts per interval</h2><div class="sub">Critical vs warning</div>'+bars(H.al.slice(-14).map(function(v){return Math.round(v)}),"#4f46e5","#06b6d4")+'</div></div></div>'};
 PG.devices=function(){head("Devices","Every laptop, monitor, printer, scanner and camera in one list");
  return'<div class="pg a"><div class="card"><div class="tb"><input id="q" placeholder="Search by name, IP or brand…" value="'+F.q+'" oninput="F.q=this.value;drawList()"><select onchange="F.s=this.value;drawList()"><option value="-1">All warehouses</option>'+S.map(function(x,i){return'<option value="'+i+'"'+(F.s==i?" selected":"")+'>'+x+'</option>'}).join("")+'</select><select onchange="F.t=this.value;drawList()"><option value="all">All types</option>'+Object.keys(TY).map(function(k){return'<option value="'+k+'"'+(F.t===k?" selected":"")+'>'+TY[k][0]+'</option>'}).join("")+'</select><select onchange="F.st=this.value;drawList()"><option value="all">Any status</option><option value="on">Online</option><option value="warn">Warning</option><option value="off">Offline</option></select></div><div class="tw"><table><thead><tr><th>Device</th><th>Type</th><th>Warehouse</th><th>IP address</th><th>OS / firmware</th><th>Status</th></tr></thead><tbody id="dl"></tbody></table></div></div></div>'};
@@ -164,28 +162,49 @@ PG.connect=function(){head("Connect a device","Add everyday warehouse devices in
  else if(wz.st===2)b='<h2 style="margin-top:12px">2 · How should it connect?</h2><div class="ty" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">'+MT.map(function(m,i){return'<div class="opt" onclick="pk(\'m\','+i+')"><div class="ic">'+m[2]+'</div><b>'+m[0]+'</b><span class="sub">'+m[1]+'</span></div>'}).join("")+'</div><button style="margin-top:14px" onclick="wz.st=1;render()">← Back</button>';
  else if(wz.st===3)b='<h2 style="margin-top:12px">3 · Device details</h2><div class="fm"><label>Device name<input value="'+wz.n+'" placeholder="e.g. Packing Laptop 4" oninput="wz.n=this.value"></label><label>Warehouse<select onchange="wz.s=+this.value">'+S.map(function(x,i){return'<option value="'+i+'"'+(wz.s===i?" selected":"")+'>'+x+", Pune</option>"}).join("")+'</select></label><label>IP address<input value="'+wz.ip+'" placeholder="192.168.10.120" oninput="wz.ip=this.value"></label><div class="row"><button onclick="wz.st=2;render()">← Back</button><button class="pr" onclick="go()">Connect '+TY[wz.t][0]+'</button></div></div>';
  else if(wz.st===4)b='<h2 style="margin-top:12px">Connecting…</h2><div class="pb"><i></i></div><div class="sub">Handshake · authenticating · syncing with the dashboard</div>';
- else b='<div style="text-align:center;padding:26px 0"><div class="ic" style="background:#dcfaee;margin:0 auto 12px;width:64px;height:64px;font-size:30px">✅</div><h2 style="font-size:20px">Device connected</h2><p class="sub">It now appears in Devices and is monitored live.</p><div class="row" style="justify-content:center"><a class="pr" style="padding:9px 15px;border-radius:11px" href="#devices">View devices</a><button onclick="wz={st:1,t:null,m:null,n:\'\',s:0,ip:\'\'};render()">Connect another</button></div></div>';
+ else b='<div style="text-align:center;padding:26px 0"><div class="ic" style="background:#dcfaee;margin:0 auto 12px;width:64px;height:64px;font-size:30px">✅</div><h2 style="font-size:20px">Device connected</h2><p class="sub">It now appears in Devices and is monitored live.</p><div class="row" style="justify-content:center"><button class="pr" style="padding:9px 15px;border-radius:11px" onclick="navTo(\'devices\')">View devices</button><button onclick="wz={st:1,t:null,m:null,n:\'\',s:0,ip:\'\'};render()">Connect another</button></div></div>';
  return'<div class="pg a"><div class="g w2"><div class="card">'+stp+b+'</div><div class="card"><h2>Discovered on your network</h2><div class="sub">Found by scanning – connect in one click</div>'+(DISC.length?DISC.map(function(d,i){return'<div class="li"><div class="dv">'+TY[d.t][1]+'</div><div><b>'+d.n+'</b><div class="sub">'+d.ip+" · "+S[d.s]+'</div></div><button class="pr" onclick="adopt('+i+')">Connect</button></div>'}).join(""):'<p class="sub" style="padding:16px 0">Everything found is already connected ✔</p>')+'</div></div></div>'};
 function pk(k,v){wz[k]=v;wz.st++;render()}
-function go(){if(!wz.n)wz.n=TY[wz.t][0]+" "+(D.length+1);if(!wz.ip)wz.ip="192.168."+(10+wz.s*10)+"."+(100+D.length);wz.st=4;render();setTimeout(function(){D.push({id:D.length,n:wz.n,t:wz.t,b:"Generic",os:"Auto‑detected",ip:wz.ip,s:wz.s,st:"on"});wz.st=5;toast("Device connected");if((location.hash||"")==="#connect")render()},2500)}
+function go(){if(!wz.n)wz.n=TY[wz.t][0]+" "+(D.length+1);if(!wz.ip)wz.ip="192.168."+(10+wz.s*10)+"."+(100+D.length);wz.st=4;render();setTimeout(function(){D.push({id:D.length,n:wz.n,t:wz.t,b:"Generic",os:"Auto‑detected",ip:wz.ip,s:wz.s,st:"on"});wz.st=5;toast("Device connected");if(currentTab==="connect")render()},2500)}
 function adopt(i){var d=DISC.splice(i,1)[0];D.push({id:D.length,n:d.n,t:d.t,b:"Generic",os:"Auto‑detected",ip:d.ip,s:d.s,st:"on"});toast(d.n+" connected");render()}
-PG.alerts=function(){head("Alerts","Problems detected across your devices, newest first");var o=open();
+PG.alerts=function(){head("Alerts","Problems detected across your devices, newest first");var o=getOpenAlerts();
  return'<div class="pg a"><div class="card">'+(o.length?o.map(function(a){return'<div class="li"><span class="pill '+a[0]+'">'+LB[a[0]]+'</span><div><b>'+a[1]+'</b><div class="sub">'+S[a[2]]+", Pune · "+a[3]+'</div></div><button onclick="A['+A.indexOf(a)+'].x=1;render()">Acknowledge</button></div>'}).join(""):'<p class="sub" style="padding:20px 0;text-align:center">No open alerts – all clear ✔</p>')+'</div></div>'};
 PG.sites=function(){head("Warehouses","Three Pune locations, one view");
  return'<div class="pg a"><div class="g e3">'+S.map(function(n,i){var L=D.filter(function(d){return d.s===i}),on=L.filter(function(d){return d.st==="on"}).length,p=Math.round(on/L.length*100),c=p<85?"#ef4444":p<95?"#f59e0b":"#10b981",tc={};L.forEach(function(d){tc[d.t]=(tc[d.t]||0)+1});
-  return'<div class="card"><div class="kp"><div class="ring" style="background:conic-gradient('+c+' '+p+'%,#eef0f6 0)"><b>'+p+'%</b></div><div><h2 style="font-size:18px">'+n+'</h2><div class="sub">Pune · '+L.length+' devices · '+(L.length-on)+' need attention</div></div></div><div class="chips">'+Object.keys(tc).map(function(k){return'<span>'+TY[k][1]+" "+tc[k]+'</span>'}).join("")+'</div><div style="margin-top:14px"><a class="pill in" href="#devices" onclick="F.s=\''+i+'\'">View devices →</a></div></div>'}).join("")+'</div></div>'};
+  return'<div class="card"><div class="kp"><div class="ring" style="background:conic-gradient('+c+' '+p+'%,#eef0f6 0)"><b>'+p+'%</b></div><div><h2 style="font-size:18px">'+n+'</h2><div class="sub">Pune · '+L.length+' devices · '+(L.length-on)+' need attention</div></div></div><div class="chips">'+Object.keys(tc).map(function(k){return'<span>'+TY[k][1]+" "+tc[k]+'</span>'}).join("")+'</div><div style="margin-top:14px"><button class="pill in" style="border:0;cursor:pointer" onclick="F.s=\''+i+'\';navTo(\'devices\')">View devices →</button></div></div>'}).join("")+'</div></div>'};
 PG.reports=function(){head("Reports","Trends and reliability insights");var wk=[98.2,97.9,98.8,96.4,97.7,98.9,99.1],dt=[["Handheld scanners",14],["Routers",9],["Printers",7],["CCTV cameras",5],["Monitors",3]];
  return'<div class="pg a"><div class="g e2"><div class="card"><h2>Weekly uptime</h2><div class="sub">Average across all warehouses</div>'+line(wk,"#10b981",95,100,"u2")+'</div><div class="card"><h2>Downtime by device type</h2><div class="sub">Hours lost this month</div>'+dt.map(function(r){return'<div class="hb"><span>'+r[0]+'</span><div class="bar2"><i style="width:'+r[1]/14*100+'%"></i></div><span>'+r[1]+' h</span></div>'}).join("")+'<button style="margin-top:12px" onclick="toast(\'Report export queued\')">Export report</button></div></div><div class="g e3">'+[["Avg repair time","18 min","▼ 4 min vs last week"],["Alerts resolved","92%","▲ 5% vs last week"],["Devices at risk","3","firmware outdated"]].map(function(r){return'<div class="card"><div class="sub">'+r[0]+'</div><div class="big">'+r[1]+'</div><div class="sub">'+r[2]+'</div></div>'}).join("")+'</div></div>'};
 var NV=[["dashboard","Dashboard","▦"],["devices","Devices","🖥️"],["connect","Connect","🔌"],["alerts","Alerts","🔔"],["sites","Warehouses","🏭"],["reports","Reports","📈"]];
-function render(anim){var h=(location.hash||"#dashboard").slice(1);if(!PG[h])h="dashboard";
- $("nav").innerHTML=NV.map(function(n){return'<a href="#'+n[0]+'" class="'+(n[0]===h?"on":"")+'">'+n[2]+' <span>'+n[1]+'</span></a>'}).join("");
- $("app").innerHTML=PG[h]();if(h==="devices")drawList();if(!anim){var p=document.querySelector(".pg");if(p)p.classList.remove("a")}}
-window.addEventListener("hashchange",function(){render(true);window.scrollTo(0,0)});
-setInterval(function(){H.up.push(Math.min(99.9,Math.max(93,H.up[29]+(Math.random()-.5)*1.4)));H.al.push(2+Math.random()*7);H.up.shift();H.al.shift();$("sy").textContent=new Date().toLocaleTimeString("en-IN");var h=location.hash;if((h===""||h==="#dashboard")&&!$("modal").className)render()},3000);
+
+function navTo(h){
+  currentTab=h;
+  render(true);
+  window.scrollTo(0,0);
+}
+
+function render(anim){
+  var h=currentTab;
+  if(!PG[h])h="dashboard";
+  $("nav").innerHTML=NV.map(function(n){return'<a onclick="navTo(\''+n[0]+'\')" class="'+(n[0]===h?"on":"")+'">'+n[2]+' <span>'+n[1]+'</span></a>'}).join("");
+  $("app").innerHTML=PG[h]();
+  if(h==="devices")drawList();
+  if(!anim){var p=document.querySelector(".pg");if(p)p.classList.remove("a")}
+}
+
+setInterval(function(){
+  H.up.push(Math.min(99.9,Math.max(93,H.up[29]+(Math.random()-.5)*1.4)));
+  H.al.push(2+Math.random()*7);
+  H.up.shift();
+  H.al.shift();
+  var syEl=$("sy");
+  if(syEl) syEl.textContent=new Date().toLocaleTimeString("en-IN");
+  if(currentTab==="dashboard" && !$("modal").className) render(false);
+}, 3000);
+
+// Initial render
 render(true);
 </script>
 </body>
 </html>"""
 
-# Render the frontend application inside Streamlit
 components.html(HTML_CODE, height=1000, scrolling=True)
