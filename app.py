@@ -1,754 +1,191 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import random
-from datetime import datetime
+import streamlit.components.v1 as components
 
-# ==========================================
-# PAGE CONFIGURATION
-# ==========================================
+# Set Streamlit page configuration
 st.set_page_config(
     page_title="Asset Sync – Warehouse Device Monitoring",
     page_icon="🔌",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# ==========================================
-# CUSTOM STYLING (MATCHING THE ORIGINAL DASHBOARD)
-# ==========================================
+# Custom CSS to hide Streamlit branding, navigation padding, and render full viewport
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-    
-    /* Background subtle gradient */
-    .stApp {
-        background: radial-gradient(900px 420px at 88% -8%, #e0e7ff 0, transparent 60%),
-                    radial-gradient(700px 400px at -5% 8%, #cffafe 0, transparent 55%),
-                    #f7f8fc;
-    }
+        #MainMenu {visibility: hidden; display: none !important;}
+        header {visibility: hidden; display: none !important;}
+        footer {visibility: hidden; display: none !important;}
+        div[data-testid="stToolbar"] {visibility: hidden; display: none !important;}
+        div[data-testid="stDecoration"] {visibility: hidden; display: none !important;}
+        div[data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
+        
+        .main .block-container {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+        }
 
-    /* Cards */
-    .glass-card {
-        background: #ffffff;
-        border: 1px solid #e6e9f2;
-        border-radius: 20px;
-        padding: 22px;
-        box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 16px 34px -22px rgba(60,70,150,.25);
-        margin-bottom: 16px;
-    }
-
-    .kpi-container {
-        background: #ffffff;
-        border: 1px solid #e6e9f2;
-        border-radius: 18px;
-        padding: 16px 18px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        box-shadow: 0 1px 2px rgba(16,24,40,.04);
-        margin-bottom: 10px;
-    }
-    
-    .kpi-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        display: grid;
-        place-items: center;
-        font-size: 22px;
-        flex-shrink: 0;
-    }
-    
-    .kpi-title {
-        color: #64748b;
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 2px;
-    }
-    
-    .kpi-value {
-        font-size: 26px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        line-height: 1.1;
-        color: #0f172a;
-    }
-    
-    .kpi-sub {
-        font-size: 12px;
-        color: #64748b;
-        margin-top: 2px;
-    }
-
-    /* Status Pills */
-    .pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border-radius: 99px;
-        font-size: 12px;
-        font-weight: 700;
-    }
-    .pill-ok { background: #dcfaee; color: #047857; }
-    .pill-wa { background: #fef3d6; color: #a16207; }
-    .pill-cr { background: #fee2e2; color: #b91c1c; }
-    .pill-in { background: #e0e7ff; color: #3730a3; }
-
-    /* Live indicator */
-    .live-badge {
-        color: #10b981;
-        font-size: 12px;
-        font-weight: 600;
-        background: #e8faf3;
-        padding: 6px 14px;
-        border-radius: 99px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .live-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #10b981;
-    }
-
-    /* Sidebar info */
-    .sync-box {
-        border-radius: 16px;
-        padding: 14px;
-        background: linear-gradient(160deg,#eef2ff,#ecfeff);
-        border: 1px solid #e6e9f2;
-        font-size: 12px;
-        color: #64748b;
-        margin-top: 20px;
-    }
-    .sync-box b {
-        color: #0f172a;
-        display: block;
-        font-size: 13px;
-        margin-bottom: 4px;
-    }
-
-    /* Buttons */
-    div.stButton > button {
-        border-radius: 11px;
-        font-weight: 600;
-        border: 1px solid #e6e9f2;
-        transition: 0.2s;
-    }
-    div.stButton > button:hover {
-        border-color: #4f46e5;
-        color: #4f46e5;
-    }
+        iframe {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            z-index: 999999 !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ==========================================
-# CONSTANTS & INITIAL DATA
-# ==========================================
-SITES = ["Chakan FC", "Bhosari MIDC", "Hadapsar Hub"]
-TYPES = {
-    "laptop": ("Laptop", "💻"),
-    "desktop": ("Desktop PC", "🖥️"),
-    "monitor": ("Monitor", "🖵"),
-    "printer": ("Printer", "🖨️"),
-    "scanner": ("Barcode scanner", "🔎"),
-    "router": ("Router / Wi‑Fi", "📶"),
-    "cctv": ("CCTV camera", "📹"),
-    "phone": ("Phone / tablet", "📱"),
-    "ups": ("UPS", "🔋"),
-}
+# Complete Frontend Application HTML/CSS/JavaScript
+HTML_CODE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asset Sync – Warehouse Device Monitoring</title>
+<style>
+:root{color-scheme:light;--tx:#0f172a;--mu:#64748b;--bd:#e6e9f2;--ac:#4f46e5;--ac2:#06b6d4;--ok:#10b981;--wa:#f59e0b;--cr:#ef4444;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;color:var(--tx);font:14px/1.5 "Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(900px 420px at 88% -8%,#e0e7ff 0,transparent 60%),radial-gradient(700px 400px at -5% 8%,#cffafe 0,transparent 55%),#f7f8fc;background-attachment:fixed}
+a{color:inherit;text-decoration:none}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+.side{background:rgba(255,255,255,.78);backdrop-filter:blur(16px);border-right:1px solid var(--bd);padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+.brand{display:flex;gap:11px;align-items:center;font-weight:800;font-size:20px;letter-spacing:-.03em;padding:0 8px 18px}
+.brand i{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--ac),var(--ac2));display:grid;place-items:center;color:#fff;font-style:normal;font-size:19px;box-shadow:0 10px 24px -8px var(--ac)}
+.brand small{display:block;font-size:11px;font-weight:500;color:var(--mu);letter-spacing:0}
+nav{display:flex;flex-direction:column;gap:4px}
+nav a{display:flex;gap:11px;align-items:center;padding:11px 13px;border-radius:13px;color:var(--mu);font-weight:600;transition:.2s}
+nav a:hover{background:#eef0fb;color:var(--tx)}
+nav a.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;box-shadow:0 10px 22px -10px var(--ac)}
+.sf{margin-top:auto;border-radius:16px;padding:14px;background:linear-gradient(160deg,#eef2ff,#ecfeff);border:1px solid var(--bd);font-size:12px;color:var(--mu)}.sf b{color:var(--tx);display:block;font-size:13px}
+.main{padding:0 28px 40px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;padding:22px 0 18px}
+.bar h1{margin:0;font-size:26px;letter-spacing:-.03em}.bar p{margin:2px 0 0;color:var(--mu);font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.live{color:var(--ok);font-size:12px;font-weight:600;background:#e8faf3;padding:6px 12px;border-radius:99px}.live:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;animation:p 1.4s infinite}
+@keyframes p{50%{opacity:.2}}@keyframes in{from{opacity:0;transform:translateY(10px)}}
+button,select,input{font:inherit;color:var(--tx);background:#fff;border:1px solid var(--bd);border-radius:11px;padding:9px 13px;outline:0}
+button{cursor:pointer;font-weight:600;transition:.2s}button:hover{border-color:#c7cdf5}
+input:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 3px #4f46e522}
+.pr{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:0;box-shadow:0 10px 22px -10px var(--ac)}.pr:hover{filter:brightness(1.07)}
+.g{display:grid;gap:16px;margin-bottom:16px}.k4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}.w2{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}.e2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}.e3{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+@media(max-width:1000px){.w2{grid-template-columns:1fr}}
+.pg.a{animation:in .45s ease both}
+.card{background:#fff;border:1px solid var(--bd);border-radius:20px;padding:20px;min-width:0;box-shadow:0 1px 2px rgba(16,24,40,.04),0 16px 34px -22px rgba(60,70,150,.3)}
+.card h2{font-size:15px;margin:0 0 2px;letter-spacing:-.01em}.sub{color:var(--mu);font-size:12.5px}
+.kp{display:flex;gap:14px;align-items:center}.ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:21px;flex:none}
+.big{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.ch{width:100%;height:190px;display:block;margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:700}
+.ok{background:#dcfaee;color:#047857}.wa{background:#fef3d6;color:#a16207}.cr{background:#fee2e2;color:#b91c1c}.in{background:#e0e7ff;color:#3730a3}
+.bar2{height:8px;border-radius:9px;background:#eef0f6;overflow:hidden}.bar2 i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.dn{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:12px}.donut{width:140px;height:140px;border-radius:50%;display:grid;place-items:center;flex:none}.donut b{width:96px;height:96px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:22px;letter-spacing:-.03em;text-align:center;line-height:1.1}.donut small{display:block;font-size:11px;font-weight:500;color:var(--mu)}
+.lg{flex:1;min-width:140px;font-size:12.5px}.lg div{display:flex;align-items:center;gap:8px;padding:2px 0}.lg i{width:10px;height:10px;border-radius:3px}.lg span{margin-left:auto;color:var(--mu)}
+.li{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd)}.li:last-child{border:0}.li>div{flex:1;min-width:0}
+.dv{width:42px;height:42px;border-radius:13px;background:#eef2ff;display:grid;place-items:center;font-size:20px;flex:none}
+.tb{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.tb input{flex:1;min-width:200px}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}th{font-size:11.5px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}tbody tr{cursor:pointer;transition:.15s}tbody tr:hover{background:#f5f6ff}
+.ty{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+.opt{border:1.5px solid var(--bd);border-radius:16px;padding:16px;cursor:pointer;transition:.2s;background:#fff;text-align:left}.opt:hover{border-color:var(--ac);transform:translateY(-3px);box-shadow:0 14px 26px -16px var(--ac)}.opt .ic{background:#eef2ff;margin-bottom:10px}.opt b{display:block}
+.stp{display:flex;gap:8px;margin-bottom:6px}.stp span{flex:1;height:5px;border-radius:5px;background:#e8ebf5}.stp span.d{background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.fm{display:grid;gap:14px;max-width:460px;margin-top:14px}.fm label{font-size:12.5px;font-weight:600;display:grid;gap:6px}.fm input,.fm select{width:100%}
+.pb{height:10px;background:#eef0f6;border-radius:9px;overflow:hidden;margin:18px 0 8px}.pb i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),var(--ac2));animation:fill 2.4s ease forwards}@keyframes fill{to{width:100%}}
+.ring{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;flex:none}.ring b{width:62px;height:62px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.chips span{background:#f1f3fa;border-radius:9px;padding:4px 9px;font-size:12px}
+.hb{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:13px}.hb span:first-child{width:130px}.hb .bar2{flex:1}.hb span:last-child{width:54px;text-align:right;color:var(--mu);font-size:12px}
+#modal{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);display:none;place-items:center;z-index:30;padding:16px}#modal.on{display:grid}
+.mb{background:#fff;border-radius:24px;padding:26px;width:min(480px,100%);animation:in .3s;max-height:90vh;overflow:auto}
+#toast{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(30px);background:var(--tx);color:#fff;padding:12px 20px;border-radius:14px;opacity:0;transition:.3s;z-index:40;font-weight:600}#toast.on{opacity:1;transform:translateX(-50%)}
+@media(max-width:860px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:12px}.brand{padding:0 8px 0 0}.brand small,.sf{display:none}nav{flex-direction:row}nav a span{display:none}.main{padding:0 14px 30px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side"><div class="brand"><i>⟳</i><div>Asset Sync<small>Pune warehouse network</small></div></div><nav id="nav"></nav><div class="sf"><b>3 warehouses synced</b>Chakan · Bhosari · Hadapsar<br>Last sync: <span id="sy">just now</span></div></aside>
+<section class="main"><header class="bar"><div><h1 id="pt"></h1><p id="ps"></p></div><div class="row"><span class="live">Live monitoring</span><a class="pr" style="padding:9px 15px;border-radius:11px;font-weight:600" href="#connect">+ Connect device</a></div></header><div id="app"></div></section>
+</div>
+<div id="modal"></div><div id="toast"></div>
+<script>
+var $=function(i){return document.getElementById(i)};
+var S=["Chakan FC","Bhosari MIDC","Hadapsar Hub"];
+var TY={laptop:["Laptop","💻"],desktop:["Desktop PC","🖥️"],monitor:["Monitor","🖵"],printer:["Printer","🖨️"],scanner:["Barcode scanner","🔎"],router:["Router / Wi‑Fi","📶"],cctv:["CCTV camera","📹"],phone:["Phone / tablet","📱"],ups:["UPS","🔋"]};
+var CL=["#4f46e5","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6","#64748b"];
+var B=[["Dispatch Desk","desktop","Dell OptiPlex","Windows 11"],["Inbound Laptop","laptop","Lenovo ThinkPad","Windows 11"],["Packing Monitor","monitor","Dell P2422H","Display"],["Label Printer","printer","Zebra ZD421","FW 5.2"],["Handheld Scanner","scanner","Honeywell CT40","Android 11"],["Wi‑Fi Router","router","TP‑Link Omada","FW 5.1"],["Dock Camera","cctv","Hikvision","FW 5.7"],["Floor Tablet","phone","Samsung Tab A8","Android 13"],["Rack UPS","ups","APC Smart‑UPS","FW 2.1"]];
+var OFF={"1-4":1,"2-5":1},WARN={"0-3":1,"1-7":1,"2-6":1},D=[];
+for(var s=0;s<3;s++)B.forEach(function(b,i){var k=s+"-"+i;D.push({id:D.length,n:b[0]+" "+(s+1),t:b[1],b:b[2],os:b[3],ip:"192.168."+(10+s*10)+"."+(20+i*9),s:s,st:OFF[k]?"off":WARN[k]?"warn":"on"})});
+var ST={on:["Online","ok"],warn:["Warning","wa"],off:["Offline","cr"]};
+var A=[["cr","Handheld Scanner 2 offline – last seen 4 min ago",1,"4 min ago"],["cr","Wi‑Fi Router 3 offline – packing zone has no network",2,"9 min ago"],["wa","Label Printer 1 running low on media",0,"15 min ago"],["wa","Floor Tablet 2 battery below 10%",1,"22 min ago"],["wa","Dock Camera 3 recording gap detected",2,"40 min ago"],["in","Firmware 5.8 available for 3 CCTV cameras",0,"1 h ago"]];
+var LB={cr:"Critical",wa:"Warning",in:"Info"};
+var DISC=[{n:"Reception Laptop",t:"laptop",ip:"192.168.10.77",s:0},{n:"HP LaserJet Office",t:"printer",ip:"192.168.20.64",s:1},{n:"Gate Camera",t:"cctv",ip:"192.168.30.91",s:2},{n:"Samsung Monitor",t:"monitor",ip:"192.168.30.58",s:2}];
+var H={up:[],al:[]};for(var i=0;i<30;i++){H.up.push(96+Math.random()*3);H.al.push(2+Math.random()*7)}
+var F={q:"",s:"-1",t:"all",st:"all"},wz={st:1,t:null,m:null,n:"",s:0,ip:""};
+function toast(m){var t=$("toast");t.textContent=m;t.className="on";setTimeout(function(){t.className=""},2400)}
+function line(a,c,mn,mx,id){var w=600,h=190,p=14,xy=a.map(function(v,i){return[i*w/(a.length-1),h-p-(v-mn)/(mx-mn)*(h-2*p)]}),d=xy.map(function(q){return q[0].toFixed(1)+","+q[1].toFixed(1)}).join(" "),g="";
+ for(var i=0;i<4;i++){var y=p+i*(h-2*p)/3;g+='<line x1="0" x2="'+w+'" y1="'+y+'" y2="'+y+'" stroke="#e6e9f2" stroke-dasharray="4 5" vector-effect="non-scaling-stroke"/>'}
+ return'<svg class="ch" viewBox="0 0 600 190" preserveAspectRatio="none"><defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+c+'" stop-opacity=".28"/><stop offset="1" stop-color="'+c+'" stop-opacity="0"/></linearGradient></defs>'+g+'<polygon points="0,'+h+' '+d+' '+w+','+h+'" fill="url(#'+id+')"/><polyline points="'+d+'" fill="none" stroke="'+c+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>'}
+function bars(a,c1,c2){var w=600,h=190,n=a.length,bw=w/n,mx=Math.max.apply(null,a)+1,s="";a.forEach(function(v,i){var hh=v/mx*(h-12);s+='<rect x="'+(i*bw+5)+'" y="'+(h-hh)+'" width="'+(bw-10)+'" height="'+hh+'" rx="6" fill="'+(i%2?c2:c1)+'" opacity=".9"/>'});return'<svg class="ch" viewBox="0 0 600 190" preserveAspectRatio="none">'+s+'</svg>'}
+function cnt(f){return D.filter(f).length}
+function open(){return A.filter(function(a){return!a.x})}
+function head(t,s){$("pt").textContent=t;$("ps").textContent=s}
+function kpi(ic,bg,t,v,s){return'<div class="card"><div class="kp"><div class="ic" style="background:'+bg+'">'+ic+'</div><div><div class="sub">'+t+'</div><div class="big">'+v+'</div><div class="sub">'+s+'</div></div></div></div>'}
+function dRow(d){var s=ST[d.st];return'<div class="li" style="cursor:pointer" onclick="showDev('+d.id+')"><div class="dv">'+TY[d.t][1]+'</div><div><b>'+d.n+'</b><div class="sub">'+S[d.s]+", Pune · "+d.ip+'</div></div><span class="pill '+s[1]+'">'+s[0]+'</span></div>'}
+var PG={};
+PG.dashboard=function(){head("Dashboard","Live overview of every connected device across Pune");
+ var on=cnt(function(d){return d.st==="on"}),off=cnt(function(d){return d.st==="off"}),oa=open(),tc={},g="",acc=0;D.forEach(function(d){tc[d.t]=(tc[d.t]||0)+1});
+ var ks=Object.keys(TY);ks.forEach(function(k,i){var p=(tc[k]||0)/D.length*100;g+=CL[i]+" "+acc+"% "+(acc+p)+"%,";acc+=p});
+ var lg=ks.map(function(k,i){return'<div><i style="background:'+CL[i]+'"></i>'+TY[k][0]+'<span>'+(tc[k]||0)+'</span></div>'}).join("");
+ return'<div class="pg a"><div class="g k4">'+kpi("🔌","#e0e7ff","Connected devices",D.length,"3 warehouses")+kpi("✅","#dcfaee","Online now",on,(on/D.length*100).toFixed(1)+"% healthy")+kpi("⛔","#fee2e2","Offline",off,"needs attention")+kpi("🔔","#fef3d6","Open alerts",oa.length,oa.filter(function(a){return a[0]==="cr"}).length+" critical")+'</div>'+
+ '<div class="g w2"><div class="card"><h2>Fleet uptime</h2><div class="sub">Live – last 30 readings · now <b>'+H.up[29].toFixed(1)+'%</b></div>'+line(H.up,"#4f46e5",92,100,"u1")+'</div><div class="card"><h2>Device types</h2><div class="sub">What is connected</div><div class="dn"><div class="donut" style="background:conic-gradient('+g.slice(0,-1)+')"><b><div>'+D.length+'<small>devices</small></div></b></div><div class="lg">'+lg+'</div></div></div></div>'+
+ '<div class="g e2"><div class="card"><div class="row" style="justify-content:space-between"><h2>Recent alerts</h2><a href="#alerts" class="pill in">View all</a></div>'+oa.slice(0,4).map(function(a){return'<div class="li"><span class="pill '+a[0]+'">'+LB[a[0]]+'</span><div><b>'+a[1]+'</b><div class="sub">'+S[a[2]]+" · "+a[3]+'</div></div></div>'}).join("")+'</div>'+
+ '<div class="card"><h2>Alerts per interval</h2><div class="sub">Critical vs warning</div>'+bars(H.al.slice(-14).map(function(v){return Math.round(v)}),"#4f46e5","#06b6d4")+'</div></div></div>'};
+PG.devices=function(){head("Devices","Every laptop, monitor, printer, scanner and camera in one list");
+ return'<div class="pg a"><div class="card"><div class="tb"><input id="q" placeholder="Search by name, IP or brand…" value="'+F.q+'" oninput="F.q=this.value;drawList()"><select onchange="F.s=this.value;drawList()"><option value="-1">All warehouses</option>'+S.map(function(x,i){return'<option value="'+i+'"'+(F.s==i?" selected":"")+'>'+x+'</option>'}).join("")+'</select><select onchange="F.t=this.value;drawList()"><option value="all">All types</option>'+Object.keys(TY).map(function(k){return'<option value="'+k+'"'+(F.t===k?" selected":"")+'>'+TY[k][0]+'</option>'}).join("")+'</select><select onchange="F.st=this.value;drawList()"><option value="all">Any status</option><option value="on">Online</option><option value="warn">Warning</option><option value="off">Offline</option></select></div><div class="tw"><table><thead><tr><th>Device</th><th>Type</th><th>Warehouse</th><th>IP address</th><th>OS / firmware</th><th>Status</th></tr></thead><tbody id="dl"></tbody></table></div></div></div>'};
+function drawList(){var q=F.q.toLowerCase(),L=D.filter(function(d){return(F.s=="-1"||d.s==F.s)&&(F.t==="all"||d.t===F.t)&&(F.st==="all"||d.st===F.st)&&(!q||(d.n+d.ip+d.b).toLowerCase().indexOf(q)>-1)});
+ $("dl").innerHTML=L.map(function(d){var s=ST[d.st];return'<tr onclick="showDev('+d.id+')"><td><b>'+TY[d.t][1]+" "+d.n+'</b><div class="sub">'+d.b+'</div></td><td>'+TY[d.t][0]+'</td><td>'+S[d.s]+'</td><td>'+d.ip+'</td><td>'+d.os+'</td><td><span class="pill '+s[1]+'">'+s[0]+'</span></td></tr>'}).join("")||'<tr><td colspan="6" class="sub">No devices match.</td></tr>'}
+function showDev(id){var d=D[id],s=ST[d.st],r=function(k){return(d.id*37+k*53)%55+20},comp=/laptop|desktop|phone/.test(d.t);
+ $("modal").innerHTML='<div class="mb"><div class="kp"><div class="ic" style="background:#eef2ff">'+TY[d.t][1]+'</div><div><h2 style="font-size:19px;margin:0">'+d.n+'</h2><div class="sub">'+d.b+" · "+S[d.s]+', Pune</div></div></div><div class="row" style="margin:16px 0"><span class="pill '+s[1]+'">'+s[0]+'</span><span class="pill in">'+d.ip+'</span><span class="pill in">'+d.os+'</span></div>'+
+ (d.st==="off"?'<div class="sub">Device is not responding. Last seen 4 minutes ago.</div>':(comp?'<div class="hb"><span>CPU</span><div class="bar2"><i style="width:'+r(1)+'%"></i></div><span>'+r(1)+'%</span></div><div class="hb"><span>Memory</span><div class="bar2"><i style="width:'+r(2)+'%"></i></div><span>'+r(2)+'%</span></div><div class="hb"><span>Storage</span><div class="bar2"><i style="width:'+r(3)+'%"></i></div><span>'+r(3)+'%</span></div>':'')+'<div class="hb"><span>Signal strength</span><div class="bar2"><i style="width:'+(r(4)+20)+'%"></i></div><span>'+(r(4)+20)+'%</span></div><div class="hb"><span>Uptime</span><div class="bar2"><i style="width:'+(r(5)+25)+'%"></i></div><span>'+(d.id%20+3)+' days</span></div>')+
+ '<div class="row" style="margin-top:18px"><button class="pr" onclick="act(\'Restart command sent\')">Restart</button><button onclick="act(\'Diagnostics running…\')">Run diagnostics</button><button onclick="rm('+id+')">Disconnect</button><button onclick="act()">Close</button></div></div>';$("modal").className="on"}
+function act(m){$("modal").className="";if(m)toast(m)}function rm(id){D[id].st="off";act("Device disconnected");render()}
+$("modal").onclick=function(e){if(e.target===this)act()};
+var MT=[["Auto‑discover","Scan the warehouse network and find devices automatically","🛰️"],["Install agent","One‑line installer for Windows, macOS and Linux","⬇️"],["QR / pairing code","Quick pairing for phones, tablets and scanners","▣"],["Manual IP / SNMP","Enter the IP address and credentials yourself","⌨️"]];
+PG.connect=function(){head("Connect a device","Add everyday warehouse devices in three simple steps");
+ var stp='<div class="stp">'+[1,2,3,4].map(function(i){return'<span class="'+(wz.st>=i?"d":"")+'"></span>'}).join("")+'</div>',b="";
+ if(wz.st===1)b='<h2 style="margin-top:12px">1 · What are you connecting?</h2><div class="ty">'+Object.keys(TY).map(function(k){return'<div class="opt" onclick="pk(\'t\',\''+k+'\')"><div class="ic">'+TY[k][1]+'</div><b>'+TY[k][0]+'</b></div>'}).join("")+'</div>';
+ else if(wz.st===2)b='<h2 style="margin-top:12px">2 · How should it connect?</h2><div class="ty" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">'+MT.map(function(m,i){return'<div class="opt" onclick="pk(\'m\','+i+')"><div class="ic">'+m[2]+'</div><b>'+m[0]+'</b><span class="sub">'+m[1]+'</span></div>'}).join("")+'</div><button style="margin-top:14px" onclick="wz.st=1;render()">← Back</button>';
+ else if(wz.st===3)b='<h2 style="margin-top:12px">3 · Device details</h2><div class="fm"><label>Device name<input value="'+wz.n+'" placeholder="e.g. Packing Laptop 4" oninput="wz.n=this.value"></label><label>Warehouse<select onchange="wz.s=+this.value">'+S.map(function(x,i){return'<option value="'+i+'"'+(wz.s===i?" selected":"")+'>'+x+", Pune</option>"}).join("")+'</select></label><label>IP address<input value="'+wz.ip+'" placeholder="192.168.10.120" oninput="wz.ip=this.value"></label><div class="row"><button onclick="wz.st=2;render()">← Back</button><button class="pr" onclick="go()">Connect '+TY[wz.t][0]+'</button></div></div>';
+ else if(wz.st===4)b='<h2 style="margin-top:12px">Connecting…</h2><div class="pb"><i></i></div><div class="sub">Handshake · authenticating · syncing with the dashboard</div>';
+ else b='<div style="text-align:center;padding:26px 0"><div class="ic" style="background:#dcfaee;margin:0 auto 12px;width:64px;height:64px;font-size:30px">✅</div><h2 style="font-size:20px">Device connected</h2><p class="sub">It now appears in Devices and is monitored live.</p><div class="row" style="justify-content:center"><a class="pr" style="padding:9px 15px;border-radius:11px" href="#devices">View devices</a><button onclick="wz={st:1,t:null,m:null,n:\'\',s:0,ip:\'\'};render()">Connect another</button></div></div>';
+ return'<div class="pg a"><div class="g w2"><div class="card">'+stp+b+'</div><div class="card"><h2>Discovered on your network</h2><div class="sub">Found by scanning – connect in one click</div>'+(DISC.length?DISC.map(function(d,i){return'<div class="li"><div class="dv">'+TY[d.t][1]+'</div><div><b>'+d.n+'</b><div class="sub">'+d.ip+" · "+S[d.s]+'</div></div><button class="pr" onclick="adopt('+i+')">Connect</button></div>'}).join(""):'<p class="sub" style="padding:16px 0">Everything found is already connected ✔</p>')+'</div></div></div>'};
+function pk(k,v){wz[k]=v;wz.st++;render()}
+function go(){if(!wz.n)wz.n=TY[wz.t][0]+" "+(D.length+1);if(!wz.ip)wz.ip="192.168."+(10+wz.s*10)+"."+(100+D.length);wz.st=4;render();setTimeout(function(){D.push({id:D.length,n:wz.n,t:wz.t,b:"Generic",os:"Auto‑detected",ip:wz.ip,s:wz.s,st:"on"});wz.st=5;toast("Device connected");if((location.hash||"")==="#connect")render()},2500)}
+function adopt(i){var d=DISC.splice(i,1)[0];D.push({id:D.length,n:d.n,t:d.t,b:"Generic",os:"Auto‑detected",ip:d.ip,s:d.s,st:"on"});toast(d.n+" connected");render()}
+PG.alerts=function(){head("Alerts","Problems detected across your devices, newest first");var o=open();
+ return'<div class="pg a"><div class="card">'+(o.length?o.map(function(a){return'<div class="li"><span class="pill '+a[0]+'">'+LB[a[0]]+'</span><div><b>'+a[1]+'</b><div class="sub">'+S[a[2]]+", Pune · "+a[3]+'</div></div><button onclick="A['+A.indexOf(a)+'].x=1;render()">Acknowledge</button></div>'}).join(""):'<p class="sub" style="padding:20px 0;text-align:center">No open alerts – all clear ✔</p>')+'</div></div>'};
+PG.sites=function(){head("Warehouses","Three Pune locations, one view");
+ return'<div class="pg a"><div class="g e3">'+S.map(function(n,i){var L=D.filter(function(d){return d.s===i}),on=L.filter(function(d){return d.st==="on"}).length,p=Math.round(on/L.length*100),c=p<85?"#ef4444":p<95?"#f59e0b":"#10b981",tc={};L.forEach(function(d){tc[d.t]=(tc[d.t]||0)+1});
+  return'<div class="card"><div class="kp"><div class="ring" style="background:conic-gradient('+c+' '+p+'%,#eef0f6 0)"><b>'+p+'%</b></div><div><h2 style="font-size:18px">'+n+'</h2><div class="sub">Pune · '+L.length+' devices · '+(L.length-on)+' need attention</div></div></div><div class="chips">'+Object.keys(tc).map(function(k){return'<span>'+TY[k][1]+" "+tc[k]+'</span>'}).join("")+'</div><div style="margin-top:14px"><a class="pill in" href="#devices" onclick="F.s=\''+i+'\'">View devices →</a></div></div>'}).join("")+'</div></div>'};
+PG.reports=function(){head("Reports","Trends and reliability insights");var wk=[98.2,97.9,98.8,96.4,97.7,98.9,99.1],dt=[["Handheld scanners",14],["Routers",9],["Printers",7],["CCTV cameras",5],["Monitors",3]];
+ return'<div class="pg a"><div class="g e2"><div class="card"><h2>Weekly uptime</h2><div class="sub">Average across all warehouses</div>'+line(wk,"#10b981",95,100,"u2")+'</div><div class="card"><h2>Downtime by device type</h2><div class="sub">Hours lost this month</div>'+dt.map(function(r){return'<div class="hb"><span>'+r[0]+'</span><div class="bar2"><i style="width:'+r[1]/14*100+'%"></i></div><span>'+r[1]+' h</span></div>'}).join("")+'<button style="margin-top:12px" onclick="toast(\'Report export queued\')">Export report</button></div></div><div class="g e3">'+[["Avg repair time","18 min","▼ 4 min vs last week"],["Alerts resolved","92%","▲ 5% vs last week"],["Devices at risk","3","firmware outdated"]].map(function(r){return'<div class="card"><div class="sub">'+r[0]+'</div><div class="big">'+r[1]+'</div><div class="sub">'+r[2]+'</div></div>'}).join("")+'</div></div>'};
+var NV=[["dashboard","Dashboard","▦"],["devices","Devices","🖥️"],["connect","Connect","🔌"],["alerts","Alerts","🔔"],["sites","Warehouses","🏭"],["reports","Reports","📈"]];
+function render(anim){var h=(location.hash||"#dashboard").slice(1);if(!PG[h])h="dashboard";
+ $("nav").innerHTML=NV.map(function(n){return'<a href="#'+n[0]+'" class="'+(n[0]===h?"on":"")+'">'+n[2]+' <span>'+n[1]+'</span></a>'}).join("");
+ $("app").innerHTML=PG[h]();if(h==="devices")drawList();if(!anim){var p=document.querySelector(".pg");if(p)p.classList.remove("a")}}
+window.addEventListener("hashchange",function(){render(true);window.scrollTo(0,0)});
+setInterval(function(){H.up.push(Math.min(99.9,Math.max(93,H.up[29]+(Math.random()-.5)*1.4)));H.al.push(2+Math.random()*7);H.up.shift();H.al.shift();$("sy").textContent=new Date().toLocaleTimeString("en-IN");var h=location.hash;if((h===""||h==="#dashboard")&&!$("modal").className)render()},3000);
+render(true);
+</script>
+</body>
+</html>"""
 
-DEFAULT_BASE = [
-    ("Dispatch Desk", "desktop", "Dell OptiPlex", "Windows 11"),
-    ("Inbound Laptop", "laptop", "Lenovo ThinkPad", "Windows 11"),
-    ("Packing Monitor", "monitor", "Dell P2422H", "Display"),
-    ("Label Printer", "printer", "Zebra ZD421", "FW 5.2"),
-    ("Handheld Scanner", "scanner", "Honeywell CT40", "Android 11"),
-    ("Wi‑Fi Router", "router", "TP‑Link Omada", "FW 5.1"),
-    ("Dock Camera", "cctv", "Hikvision", "FW 5.7"),
-    ("Floor Tablet", "phone", "Samsung Tab A8", "Android 13"),
-    ("Rack UPS", "ups", "APC Smart‑UPS", "FW 2.1"),
-]
-
-OFF_KEYS = {"1-4", "2-5"}
-WARN_KEYS = {"0-3", "1-7", "2-6"}
-
-# ==========================================
-# SESSION STATE INITIALIZATION
-# ==========================================
-if "devices" not in st.session_state:
-    devs = []
-    dev_id = 0
-    for s_idx in range(3):
-        for b_idx, b in enumerate(DEFAULT_BASE):
-            k = f"{s_idx}-{b_idx}"
-            st_val = "off" if k in OFF_KEYS else ("warn" if k in WARN_KEYS else "on")
-            devs.append({
-                "id": dev_id,
-                "name": f"{b[0]} {s_idx + 1}",
-                "type": b[1],
-                "brand": b[2],
-                "os": b[3],
-                "ip": f"192.168.{10 + s_idx * 10}.{20 + b_idx * 9}",
-                "site_idx": s_idx,
-                "site": SITES[s_idx],
-                "status": st_val,
-                "cpu": random.randint(20, 75),
-                "memory": random.randint(30, 85),
-                "storage": random.randint(25, 70),
-                "signal": random.randint(70, 99),
-                "uptime_days": random.randint(3, 28)
-            })
-            dev_id += 1
-    st.session_state.devices = devs
-
-if "alerts" not in st.session_state:
-    st.session_state.alerts = [
-        {"id": 1, "level": "cr", "text": "Handheld Scanner 2 offline – last seen 4 min ago", "site": "Bhosari MIDC", "time": "4 min ago", "ack": False},
-        {"id": 2, "level": "cr", "text": "Wi‑Fi Router 3 offline – packing zone has no network", "site": "Hadapsar Hub", "time": "9 min ago", "ack": False},
-        {"id": 3, "level": "wa", "text": "Label Printer 1 running low on media", "site": "Chakan FC", "time": "15 min ago", "ack": False},
-        {"id": 4, "level": "wa", "text": "Floor Tablet 2 battery below 10%", "site": "Bhosari MIDC", "time": "22 min ago", "ack": False},
-        {"id": 5, "level": "wa", "text": "Dock Camera 3 recording gap detected", "site": "Hadapsar Hub", "time": "40 min ago", "ack": False},
-        {"id": 6, "level": "in", "text": "Firmware 5.8 available for 3 CCTV cameras", "site": "Chakan FC", "time": "1 h ago", "ack": False},
-    ]
-
-if "discovered" not in st.session_state:
-    st.session_state.discovered = [
-        {"name": "Reception Laptop", "type": "laptop", "ip": "192.168.10.77", "site_idx": 0, "brand": "HP ProBook"},
-        {"name": "HP LaserJet Office", "type": "printer", "ip": "192.168.20.64", "site_idx": 1, "brand": "HP LaserJet"},
-        {"name": "Gate Camera", "type": "cctv", "ip": "192.168.30.91", "site_idx": 2, "brand": "Hikvision"},
-        {"name": "Samsung Monitor", "type": "monitor", "ip": "192.168.30.58", "site_idx": 2, "brand": "Samsung UHD"},
-    ]
-
-# ==========================================
-# SIDEBAR
-# ==========================================
-with st.sidebar:
-    st.markdown(
-        """
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-            <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #06b6d4); display: grid; place-items: center; color: white; font-size: 22px; font-weight: 800; box-shadow: 0 10px 24px -8px #4f46e5;">
-                ⟳
-            </div>
-            <div>
-                <span style="font-size: 20px; font-weight: 800; letter-spacing: -0.03em; color: #0f172a;">Asset Sync</span>
-                <span style="display: block; font-size: 11.5px; color: #64748b;">Pune warehouse network</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    page = st.radio(
-        "Navigation",
-        ["Dashboard", "Devices", "Connect Device", "Alerts", "Warehouses", "Reports"],
-        label_visibility="collapsed",
-    )
-
-    st.markdown(
-        """
-        <div class="sync-box">
-            <b>3 warehouses synced</b>
-            Chakan · Bhosari · Hadapsar<br>
-            Status: <span style="color:#10b981; font-weight:600;">Active Live Stream</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# ==========================================
-# PAGE ROUTING
-# ==========================================
-
-# HEADER ROW
-header_col1, header_col2 = st.columns([3, 1])
-with header_col1:
-    titles = {
-        "Dashboard": ("Dashboard", "Live overview of every connected device across Pune"),
-        "Devices": ("Devices", "Every laptop, monitor, printer, scanner and camera in one list"),
-        "Connect Device": ("Connect a Device", "Add everyday warehouse devices in three simple steps"),
-        "Alerts": ("Alerts", "Problems detected across your devices, newest first"),
-        "Warehouses": ("Warehouses", "Three Pune locations, one view"),
-        "Reports": ("Reports", "Trends and reliability insights across the fleet"),
-    }
-    t, s = titles[page]
-    st.markdown(f"<h1 style='margin:0; font-size:28px; letter-spacing:-0.03em;'>{t}</h1><p style='color:#64748b; font-size:14px; margin-top:2px;'>{s}</p>", unsafe_allow_html=True)
-
-with header_col2:
-    st.markdown(
-        """
-        <div style="display: flex; justify-content: flex-end; align-items: center; height: 100%;">
-            <span class="live-badge"><span class="live-dot"></span> Live monitoring</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-st.write("")
-
-# ----------------------------------------------------
-# 1. DASHBOARD
-# ----------------------------------------------------
-if page == "Dashboard":
-    devices = st.session_state.devices
-    total = len(devices)
-    online = len([d for d in devices if d["status"] == "on"])
-    offline = len([d for d in devices if d["status"] == "off"])
-    open_alerts = [a for a in st.session_state.alerts if not a["ack"]]
-    critical_alerts = len([a for a in open_alerts if a["level"] == "cr"])
-
-    # 4 Top KPIs
-    k1, k2, k3, k4 = st.columns(4)
-    with k1:
-        st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-icon" style="background:#e0e7ff;">🔌</div>
-            <div>
-                <div class="kpi-title">Connected devices</div>
-                <div class="kpi-value">{total}</div>
-                <div class="kpi-sub">3 warehouses</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with k2:
-        pct_healthy = round((online / total) * 100, 1) if total else 0
-        st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-icon" style="background:#dcfaee;">✅</div>
-            <div>
-                <div class="kpi-title">Online now</div>
-                <div class="kpi-value">{online}</div>
-                <div class="kpi-sub">{pct_healthy}% healthy</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with k3:
-        st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-icon" style="background:#fee2e2;">⛔</div>
-            <div>
-                <div class="kpi-title">Offline</div>
-                <div class="kpi-value">{offline}</div>
-                <div class="kpi-sub">needs attention</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with k4:
-        st.markdown(f"""
-        <div class="kpi-container">
-            <div class="kpi-icon" style="background:#fef3d6;">🔔</div>
-            <div>
-                <div class="kpi-title">Open alerts</div>
-                <div class="kpi-value">{len(open_alerts)}</div>
-                <div class="kpi-sub">{critical_alerts} critical</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.write("")
-
-    # CHARTS ROW 1
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Fleet Uptime Trend</h3><span style='color:#64748b; font-size:13px;'>Last 30 readings · Average <b>98.4%</b></span>", unsafe_allow_html=True)
-        # Generate smooth area chart
-        chart_data = [96.5 + (i * 0.08) + random.uniform(-0.5, 0.6) for i in range(30)]
-        fig_uptime = go.Figure()
-        fig_uptime.add_trace(go.Scatter(
-            y=chart_data,
-            mode='lines',
-            fill='tozeroy',
-            fillcolor='rgba(79, 70, 229, 0.12)',
-            line=dict(color='#4f46e5', width=3, shape='spline'),
-            name="Uptime %"
-        ))
-        fig_uptime.update_layout(
-            height=210,
-            margin=dict(l=0, r=0, t=10, b=0),
-            xaxis=dict(showgrid=False, visible=False),
-            yaxis=dict(range=[94, 100], gridcolor='#e6e9f2'),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-        st.plotly_chart(fig_uptime, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with c2:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Device Types</h3><span style='color:#64748b; font-size:13px;'>Inventory distribution</span>", unsafe_allow_html=True)
-        type_counts = {}
-        for d in devices:
-            t_name = TYPES[d["type"]][0]
-            type_counts[t_name] = type_counts.get(t_name, 0) + 1
-        
-        df_pie = pd.DataFrame(list(type_counts.items()), columns=["Type", "Count"])
-        fig_pie = px.pie(
-            df_pie,
-            names="Type",
-            values="Count",
-            hole=0.62,
-            color_discrete_sequence=['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
-        )
-        fig_pie.update_layout(
-            height=210,
-            margin=dict(l=0, r=0, t=10, b=0),
-            showlegend=False,
-            paper_bgcolor='rgba(0,0,0,0)',
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # CHARTS ROW 2: Alerts & Distribution
-    r1, r2 = st.columns([1, 1])
-    with r1:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Recent Alerts</h3>", unsafe_allow_html=True)
-        recent_alerts = open_alerts[:4]
-        if recent_alerts:
-            for a in recent_alerts:
-                level_class = f"pill-{a['level']}"
-                lvl_label = "CRITICAL" if a['level'] == 'cr' else ("WARN" if a['level'] == 'wa' else "INFO")
-                st.markdown(
-                    f"""
-                    <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f3f9;">
-                        <span class="pill {level_class}">{lvl_label}</span>
-                        <div style="flex:1;">
-                            <div style="font-weight:600; font-size:13px; color:#0f172a;">{a['text']}</div>
-                            <div style="font-size:12px; color:#64748b;">{a['site']} · {a['time']}</div>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("No open alerts at this time.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with r2:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Alerts by Interval</h3><span style='color:#64748b; font-size:13px;'>Hourly incident volume</span>", unsafe_allow_html=True)
-        hours = [f"{h}:00" for h in range(8, 20)]
-        vol = [random.randint(1, 9) for _ in hours]
-        df_bars = pd.DataFrame({"Hour": hours, "Alerts": vol})
-        fig_bars = px.bar(df_bars, x="Hour", y="Alerts", color_discrete_sequence=['#4f46e5'])
-        fig_bars.update_layout(
-            height=200,
-            margin=dict(l=0, r=0, t=10, b=0),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(gridcolor='#e6e9f2'),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-        st.plotly_chart(fig_bars, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------------------------------------------
-# 2. DEVICES
-# ----------------------------------------------------
-elif page == "Devices":
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    
-    # Filter Bar
-    fc1, fc2, fc3, fc4 = st.columns([2, 1, 1, 1])
-    with fc1:
-        search_query = st.text_input("Search", placeholder="Search by name, brand, or IP...", label_visibility="collapsed")
-    with fc2:
-        site_filter = st.selectbox("Warehouse", ["All Warehouses"] + SITES, label_visibility="collapsed")
-    with fc3:
-        type_options = ["All Types"] + [TYPES[k][0] for k in TYPES]
-        type_filter = st.selectbox("Type", type_options, label_visibility="collapsed")
-    with fc4:
-        status_filter = st.selectbox("Status", ["All Statuses", "Online", "Warning", "Offline"], label_visibility="collapsed")
-
-    # Filter logic
-    filtered = []
-    for d in st.session_state.devices:
-        matches_query = not search_query or (
-            search_query.lower() in d["name"].lower() or
-            search_query.lower() in d["ip"] or
-            search_query.lower() in d["brand"].lower()
-        )
-        matches_site = (site_filter == "All Warehouses") or (d["site"] == site_filter)
-        t_label = TYPES[d["type"]][0]
-        matches_type = (type_filter == "All Types") or (t_label == type_filter)
-        st_map = {"Online": "on", "Warning": "warn", "Offline": "off"}
-        matches_status = (status_filter == "All Statuses") or (d["status"] == st_map.get(status_filter))
-        
-        if matches_query and matches_site and matches_type and matches_status:
-            filtered.append(d)
-
-    st.write(f"Showing **{len(filtered)}** devices")
-
-    # Interactive Table / Device Card List
-    for dev in filtered:
-        st_class = "pill-ok" if dev["status"] == "on" else ("pill-wa" if dev["status"] == "warn" else "pill-cr")
-        st_label = "Online" if dev["status"] == "on" else ("Warning" if dev["status"] == "warn" else "Offline")
-        icon = TYPES[dev["type"]][1]
-
-        with st.expander(f"{icon} **{dev['name']}**  —  {dev['brand']} ({dev['site']})  |  Status: {st_label}"):
-            dc1, dc2, dc3 = st.columns(3)
-            with dc1:
-                st.write(f"**IP Address:** `{dev['ip']}`")
-                st.write(f"**OS / Firmware:** {dev['os']}")
-                st.write(f"**Uptime:** {dev['uptime_days']} days")
-            with dc2:
-                st.write(f"**CPU Usage:** {dev['cpu']}%")
-                st.progress(dev['cpu'] / 100)
-                st.write(f"**Memory:** {dev['memory']}%")
-                st.progress(dev['memory'] / 100)
-            with dc3:
-                st.write(f"**Signal Strength:** {dev['signal']}%")
-                st.progress(dev['signal'] / 100)
-                st.write(f"**Storage:** {dev['storage']}%")
-                st.progress(dev['storage'] / 100)
-            
-            st.divider()
-            bcol1, bcol2, bcol3, _ = st.columns([1, 1.2, 1, 3])
-            with bcol1:
-                if st.button("🔄 Restart", key=f"rst_{dev['id']}"):
-                    st.toast(f"Restart command sent to {dev['name']}")
-            with bcol2:
-                if st.button("🧪 Diagnostics", key=f"diag_{dev['id']}"):
-                    st.toast(f"Diagnostics running on {dev['name']}...")
-            with bcol3:
-                if st.button("❌ Disconnect", key=f"dc_{dev['id']}"):
-                    dev["status"] = "off"
-                    st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------------------------------------------
-# 3. CONNECT DEVICE
-# ----------------------------------------------------
-elif page == "Connect Device":
-    c_left, c_right = st.columns([1.5, 1])
-    
-    with c_left:
-        st.markdown("<div class='glass-card'><h2 style='font-size:18px; margin-top:0;'>Add a New Warehouse Device</h2>", unsafe_allow_html=True)
-        with st.form("add_device_form", clear_on_submit=True):
-            col_t1, col_t2 = st.columns(2)
-            with col_t1:
-                dev_type_key = st.selectbox(
-                    "Device Type",
-                    options=list(TYPES.keys()),
-                    format_func=lambda k: f"{TYPES[k][1]} {TYPES[k][0]}"
-                )
-                conn_method = st.selectbox(
-                    "Connection Method",
-                    ["Auto-discover", "Install agent (One-liner)", "QR / Pairing code", "Manual IP / SNMP"]
-                )
-            with col_t2:
-                site_choice = st.selectbox("Warehouse", SITES)
-                dev_name = st.text_input("Device Name", placeholder="e.g. Packing Laptop 4")
-            
-            ip_addr = st.text_input("IP Address", placeholder="e.g. 192.168.10.125")
-            submitted = st.form_submit_button("🚀 Connect Device", use_container_width=True)
-
-            if submitted:
-                new_name = dev_name.strip() or f"{TYPES[dev_type_key][0]} {len(st.session_state.devices) + 1}"
-                new_ip = ip_addr.strip() or f"192.168.10.{random.randint(100, 250)}"
-                st.session_state.devices.append({
-                    "id": len(st.session_state.devices),
-                    "name": new_name,
-                    "type": dev_type_key,
-                    "brand": "Configured",
-                    "os": "Auto-detected",
-                    "ip": new_ip,
-                    "site_idx": SITES.index(site_choice),
-                    "site": site_choice,
-                    "status": "on",
-                    "cpu": 25,
-                    "memory": 40,
-                    "storage": 35,
-                    "signal": 95,
-                    "uptime_days": 1
-                })
-                st.success(f"Device **{new_name}** ({new_ip}) successfully connected and synced!")
-                st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with c_right:
-        st.markdown("<div class='glass-card'><h3 style='margin-top:0; font-size:16px;'>Discovered on your network</h3><p style='color:#64748b; font-size:13px;'>Found by scanning Pune warehouse subnet</p>", unsafe_allow_html=True)
-        if st.session_state.discovered:
-            for idx, disc in enumerate(st.session_state.discovered):
-                dcol1, dcol2 = st.columns([3, 1])
-                with dcol1:
-                    icon = TYPES[disc["type"]][1]
-                    st.write(f"**{icon} {disc['name']}**")
-                    st.caption(f"{disc['ip']} · {SITES[disc['site_idx']]}")
-                with dcol2:
-                    if st.button("Adopt", key=f"adopt_{idx}"):
-                        st.session_state.devices.append({
-                            "id": len(st.session_state.devices),
-                            "name": disc["name"],
-                            "type": disc["type"],
-                            "brand": disc["brand"],
-                            "os": "Auto-detected",
-                            "ip": disc["ip"],
-                            "site_idx": disc["site_idx"],
-                            "site": SITES[disc["site_idx"]],
-                            "status": "on",
-                            "cpu": 30,
-                            "memory": 45,
-                            "storage": 20,
-                            "signal": 88,
-                            "uptime_days": 1
-                        })
-                        st.session_state.discovered.pop(idx)
-                        st.toast(f"{disc['name']} adopted successfully!")
-                        st.rerun()
-                st.divider()
-        else:
-            st.info("Everything found on the network is already connected ✔")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------------------------------------------
-# 4. ALERTS
-# ----------------------------------------------------
-elif page == "Alerts":
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    open_alerts = [a for a in st.session_state.alerts if not a["ack"]]
-    if open_alerts:
-        for alert in open_alerts:
-            level_pill = f"pill-{alert['level']}"
-            lvl_name = "CRITICAL" if alert['level'] == 'cr' else ("WARNING" if alert['level'] == 'wa' else "INFO")
-            
-            ac1, ac2 = st.columns([5, 1])
-            with ac1:
-                st.markdown(
-                    f"""
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <span class="pill {level_pill}">{lvl_name}</span>
-                        <div>
-                            <div style="font-weight:700; font-size:14px; color:#0f172a;">{alert['text']}</div>
-                            <div style="font-size:12px; color:#64748b;">{alert['site']}, Pune · {alert['time']}</div>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            with ac2:
-                if st.button("Acknowledge", key=f"ack_{alert['id']}"):
-                    alert["ack"] = True
-                    st.toast("Alert marked as acknowledged")
-                    st.rerun()
-            st.divider()
-    else:
-        st.success("🎉 No open alerts! All warehouse devices are functioning normally.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ----------------------------------------------------
-# 5. WAREHOUSES
-# ----------------------------------------------------
-elif page == "Warehouses":
-    cols = st.columns(3)
-    for i, site_name in enumerate(SITES):
-        with cols[i]:
-            site_devs = [d for d in st.session_state.devices if d["site_idx"] == i]
-            total_site = len(site_devs)
-            online_site = len([d for d in site_devs if d["status"] == "on"])
-            pct = round((online_site / total_site) * 100) if total_site else 100
-            color = "#ef4444" if pct < 85 else ("#f59e0b" if pct < 95 else "#10b981")
-
-            st.markdown(
-                f"""
-                <div class="glass-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <h3 style="margin:0; font-size:18px;">{site_name}</h3>
-                        <span style="font-size:18px; font-weight:800; color:{color};">{pct}%</span>
-                    </div>
-                    <div style="font-size:13px; color:#64748b; margin-bottom:14px;">
-                        Pune · <b>{total_site}</b> devices · {total_site - online_site} need attention
-                    </div>
-                """,
-                unsafe_allow_html=True
-            )
-            st.progress(pct / 100)
-            
-            # Type summary chips
-            type_tallies = {}
-            for d in site_devs:
-                t_key = d["type"]
-                type_tallies[t_key] = type_tallies.get(t_key, 0) + 1
-            
-            chips_html = " ".join([f"<span class='pill pill-in' style='margin:2px;'>{TYPES[k][1]} {type_tallies[k]}</span>" for k in type_tallies])
-            st.markdown(f"<div style='margin-top:14px;'>{chips_html}</div></div>", unsafe_allow_html=True)
-
-# ----------------------------------------------------
-# 6. REPORTS
-# ----------------------------------------------------
-elif page == "Reports":
-    col_rep1, col_rep2 = st.columns([1, 1])
-    with col_rep1:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Weekly Uptime Trend</h3><span style='color:#64748b; font-size:13px;'>Average across all 3 Pune facilities</span>", unsafe_allow_html=True)
-        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        vals = [98.2, 97.9, 98.8, 96.4, 97.7, 98.9, 99.1]
-        fig_week = px.line(x=days, y=vals, markers=True, color_discrete_sequence=['#10b981'])
-        fig_week.update_layout(
-            height=220,
-            margin=dict(l=0, r=0, t=10, b=0),
-            xaxis=dict(title=None, showgrid=False),
-            yaxis=dict(title=None, range=[95, 100], gridcolor='#e6e9f2'),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-        st.plotly_chart(fig_week, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col_rep2:
-        st.markdown("<div class='glass-card'><h3 style='margin:0 0 4px 0; font-size:16px;'>Downtime by Device Type</h3><span style='color:#64748b; font-size:13px;'>Hours lost this month</span>", unsafe_allow_html=True)
-        d_types = ["Scanners", "Routers", "Printers", "CCTV", "Monitors"]
-        d_hours = [14, 9, 7, 5, 3]
-        fig_dt = px.bar(x=d_hours, y=d_types, orientation='h', color_discrete_sequence=['#4f46e5'])
-        fig_dt.update_layout(
-            height=220,
-            margin=dict(l=0, r=0, t=10, b=0),
-            xaxis=dict(title=None, gridcolor='#e6e9f2'),
-            yaxis=dict(title=None, showgrid=False),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-        )
-        st.plotly_chart(fig_dt, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # 3 Summary Metrics
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.markdown("""
-        <div class="kpi-container">
-            <div>
-                <div class="kpi-title">Avg Repair Time</div>
-                <div class="kpi-value">18 min</div>
-                <div class="kpi-sub" style="color:#10b981;">▼ 4 min vs last week</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with m2:
-        st.markdown("""
-        <div class="kpi-container">
-            <div>
-                <div class="kpi-title">Alerts Resolved</div>
-                <div class="kpi-value">92%</div>
-                <div class="kpi-sub" style="color:#10b981;">▲ 5% vs last week</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with m3:
-        st.markdown("""
-        <div class="kpi-container">
-            <div>
-                <div class="kpi-title">Devices At Risk</div>
-                <div class="kpi-value">3</div>
-                <div class="kpi-sub" style="color:#f59e0b;">firmware outdated</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+# Render the frontend application inside Streamlit
+components.html(HTML_CODE, height=1000, scrolling=True)
